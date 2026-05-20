@@ -1,146 +1,214 @@
-# 🔥 RootReaper Automation Suite
+# RootReaper Automation Suite
 
-A production-style, cross-platform **Vulnerability Assessment and Penetration Testing (VAPT)** automation framework that integrates multiple security tools, correlates findings, and generates structured, actionable reports.
+A production-style, cross-platform **Vulnerability Assessment and Penetration Testing (VAPT)** automation framework that orchestrates multiple security tools, enriches findings with threat intelligence, and generates executive-grade reports.
 
-🚀 **RootReaper Automation Suite** is designed to simulate how enterprise-grade security platforms perform automated scanning, vulnerability intelligence, and reporting.
-
-A production-style, cross-platform **Vulnerability Assessment and Penetration Testing (VAPT)** automation framework that integrates multiple security tools, correlates findings, and generates structured, actionable reports.
-
-This project is designed to simulate how real-world security tools orchestrate scans and produce intelligence instead of raw outputs.
+> Built to simulate how real enterprise security platforms move from raw scan output to actionable security intelligence.
 
 ---
 
-# 📌 Table of Contents
+## Table of Contents
 
-* Overview
-* Features
-* Architecture
-* Tech Stack
-* Installation
-* Setup External Tools
-* Usage
-* Workflow (Step-by-Step)
-* Output & Reports
-* Example Run
-* Troubleshooting
-* Future Enhancements
-* Security Disclaimer
-
----
-
-# 🧠 Overview
-
-Traditional security tools like Nmap or Nikto generate **raw scan outputs**.
-
-This framework solves that problem by:
-
-* Automating tool execution
-* Parsing outputs into structured data
-* Correlating vulnerabilities
-* Assigning severity levels
-* Generating readable reports
-
-👉 Think of this as a **mini enterprise-grade vulnerability scanner**.
+- [Overview](#overview)
+- [Features](#features)
+- [Architecture](#architecture)
+- [Pipeline](#pipeline)
+- [Module Reference](#module-reference)
+- [Tech Stack](#tech-stack)
+- [Installation](#installation)
+- [External Tools Setup](#external-tools-setup)
+- [Usage](#usage)
+- [Exploit Mode](#exploit-mode)
+- [Output & Reports](#output--reports)
+- [Example Session](#example-session)
+- [Troubleshooting](#troubleshooting)
+- [Security Disclaimer](#security-disclaimer)
+- [Author](#author)
 
 ---
 
-# 🚀 Features
+## Overview
 
-### 🔎 Scanning
+Traditional tools like Nmap and Nikto dump raw text output — useful, but not actionable on their own.
 
-* Network scanning (ports, services, OS detection)
-* Web vulnerability scanning
-* Extensible for additional tools
+RootReaper solves this by:
 
-### ⚙️ Automation
-
-* Central orchestration engine
-* Sequential + modular scanning pipeline
-
-### 🧠 Intelligence Layer
-
-* CVE mapping (extendable)
-* Severity classification
-* Duplicate vulnerability filtering
-
-### 📄 Reporting
-
-* Clean HTML reports
-* Optional PDF export
-* Structured findings with recommendations
+- Orchestrating tool execution end-to-end
+- Parsing and normalising all outputs into structured data
+- Correlating vulnerabilities and mapping attack paths
+- Ranking asset criticality and scoring risk (CVSS-aligned)
+- Generating a dashboard-style HTML report with charts, evidence, and CVE links
+- Exporting a print-ready PDF for client/professor delivery
 
 ---
 
-# 🧱 Architecture
+## Features
+
+### Scanning & Enumeration
+
+| Capability | Detail |
+|---|---|
+| Host discovery | Nmap ping scan (`-sn`) with socket-probe fallback |
+| Port scanning | SYN/TCP scan, banner grab, default NSE scripts, OS detection, version intensity 7 |
+| Service enumeration | Targeted NSE scripts per service — SMB, FTP, SSH, RDP, HTTP/HTTPS |
+| Vulnerability scanning | `--script vuln` (detection) or `--script vuln,exploit` (exploit mode) |
+| Web application scanning | Nikto integration, HTTP security header analysis, SSL/TLS weakness detection |
+| Host audit | Local firewall status, AV detection, misconfiguration checks (UAC, etc.) |
+| Threat intelligence | NVD API — latest Critical CVEs with CVSS scores and NVD links |
+
+### Intelligence Layer
+
+- **Asset criticality ranking** — scores each host by exposed services (RDP, SMB, Telnet = high risk)
+- **Attack path analysis** — 10 built-in rules: EternalBlue, RDP exposure, anonymous FTP, Telnet, VNC, web RCE, SQLi, weak SSL, SNMP, and more
+- **Validation status** — every finding is tagged `Confirmed`, `Likely`, or `Potential`
+- **Likelihood scoring** — `High / Medium / Low` based on CVE presence and NSE confidence
+- **Exposure grouping** — vulnerabilities grouped by attack category (RCE, Auth Bypass, Info Disclosure, etc.)
+- **CVE extraction** — regex extraction of CVE IDs from all NSE script output
+- **CVSS-aligned scoring** — Critical 9.5 / High 8.0 / Medium 5.5 / Low 2.5
+
+### Reporting
+
+- **Interactive HTML dashboard** — Chart.js severity donut, host risk bar chart, risk heatmap (Impact × Likelihood), collapsible evidence panels, CVE NVD links, per-host remediation priority tables
+- **PDF export** — print-ready report via weasyprint
+- **JSON export** — machine-readable full findings for downstream tooling
+
+---
+
+## Architecture
 
 ```
-User Input
-    ↓
-Orchestrator
-    ↓
-[ Nmap Scan ] → [ Parser ]
-    ↓
-[ Web Scan ] → [ Parser ]
-    ↓
-Correlation Engine
-    ↓
-Report Generator
-    ↓
-Final Output (HTML/PDF)
+main.py  (orchestrator)
+├── utils/
+│   ├── logger.py            Rich console output
+│   ├── os_detect.py         Platform/environment detection
+│   └── dependency_check.py  Validates required + optional binaries
+└── scanner/
+    ├── network.py           Local subnet detection
+    ├── discovery.py         Live host discovery (nmap / socket fallback)
+    ├── portscan.py          Parallel port + banner + OS scan
+    ├── enumeration.py       Service-specific NSE enumeration (SMB/FTP/SSH/RDP/HTTP)
+    ├── vulnscan.py          Parallel vuln scan — NSE vuln (+exploit) scripts
+    ├── webscan.py           Nikto + HTTP header analysis + SSL/TLS checks
+    ├── host_audit.py        Local host security audit
+    ├── threat_intel.py      NVD API — latest critical CVEs
+    ├── risk_engine.py       Severity, CVSS, attack paths, asset criticality
+    └── report_engine.py     JSON + HTML dashboard + PDF generation
 ```
 
-### Core Components
+---
 
-| Module   | Responsibility                    |
-| -------- | --------------------------------- |
-| scanner/ | Runs external tools               |
-| parser/  | Extracts structured data          |
-| core/    | Logic, orchestration, correlation |
-| reports/ | Templates + output                |
-| utils/   | Helper functions                  |
+## Pipeline
+
+```
+Environment Validation
+        ↓
+Subnet Detection  →  User confirms or overrides
+        ↓
+Host Discovery    →  User selects targets
+        ↓
+Port Selection    →  User enters port range
+        ↓
+Exploit Mode?     →  User confirms authorization
+        ↓
+Port Scan         (banner grab, OS detection, default NSE scripts)
+        ↓
+Service Enumeration  (SMB, FTP, SSH, RDP, HTTP/HTTPS — targeted NSE)
+        ↓
+Vulnerability Scan   (NSE vuln scripts; optionally + exploit)
+        ↓
+Web Application Scan (Nikto + HTTP headers + SSL/TLS)
+        ↓
+Host Audit           (local machine checks)
+        ↓
+Threat Intelligence  (NVD — latest Critical CVEs)
+        ↓
+Risk Analysis        (CVSS scoring, attack paths, asset criticality)
+        ↓
+Report Generation    (HTML dashboard + JSON + PDF)
+```
 
 ---
 
-# 🛠️ Tech Stack
+## Module Reference
 
-* Python 3.9+
-* Nmap (network scanning)
-* Nikto (web scanning)
-* Jinja2 (templating)
-* Pandas (data processing)
+### scanner/enumeration.py
+
+Runs targeted Nmap NSE scripts grouped by service type:
+
+| Service | NSE Scripts |
+|---|---|
+| SMB (139/445) | `smb-enum-shares`, `smb-enum-users`, `smb-security-mode`, `smb-vuln-ms17-010`, `smb-vuln-ms08-067`, `smb-vuln-cve-2020-0796` |
+| FTP (21) | `ftp-anon`, `ftp-bounce`, `ftp-syst` |
+| SSH (22) | `ssh-auth-methods`, `ssh-hostkey`, `ssh2-enum-algos` |
+| RDP (3389) | `rdp-enum-encryption`, `rdp-vuln-ms12-020` |
+| HTTP (80/8080) | `http-headers`, `http-methods`, `http-title`, `http-robots.txt`, `http-auth-finder` |
+| HTTPS (443/8443) | All HTTP scripts + `ssl-cert`, `ssl-enum-ciphers`, `tls-ticketbleed`, `ssl-heartbleed` |
+
+### scanner/webscan.py
+
+- **Nikto** — common web vulnerabilities, misconfigurations, outdated software
+- **HTTP header analysis** — checks for 7 required security headers (CSP, HSTS, X-Frame-Options, etc.), flags information-leaking headers (Server, X-Powered-By, etc.)
+- **SSL/TLS checks** — weak protocols (SSLv2/3, TLS 1.0/1.1), weak ciphers (RC4, DES, NULL, EXPORT), expired/expiring certificates
+
+### scanner/risk_engine.py
+
+**Attack path rules** — automatically triggered when matching ports + vuln keywords are found:
+
+| Rule | Trigger | Severity |
+|---|---|---|
+| EternalBlue | SMB 445 + ms17-010 keyword | Critical |
+| RDP Exposure | Port 3389 open | High |
+| Anonymous SMB | SMB + null session keyword | High |
+| Anonymous FTP | Port 21 + ftp-anon keyword | High |
+| Telnet Exposed | Port 23 open | Critical |
+| VNC Exposed | Port 5900 open | High |
+| Web RCE | HTTP ports + RCE keyword | Critical |
+| SQL Injection | HTTP ports + SQLi keyword | High |
+| Weak SSL | HTTPS ports + SSL keyword | Medium |
+| SNMP Exposure | Port 161 open | Medium |
 
 ---
 
-# ⚙️ Installation
+## Tech Stack
 
-### 1. Clone Repository
+| Component | Library / Tool |
+|---|---|
+| Language | Python 3.9+ |
+| Network scanning | Nmap + python-nmap |
+| Web scanning | Nikto |
+| Console output | Rich, Colorama |
+| HTTP requests | Requests |
+| HTML templating | Jinja2 |
+| PDF export | Weasyprint |
+| Report charts | Chart.js (CDN, client-side) |
+| Threat intel | NVD API v2 |
+| Host audit | psutil, subprocess |
+
+---
+
+## Installation
+
+### 1. Clone the repository
 
 ```bash
-git clone https://github.com/your-username/vapt-framework.git
-cd vapt-framework
+git clone https://github.com/Pragy2009/RootReaper-Automation-Suite.git
+cd RootReaper-Automation-Suite
 ```
 
-### 2. Create Virtual Environment
-
-```bash
-python -m venv venv
-```
-
-Activate:
+### 2. Create a virtual environment
 
 **Windows**
-
 ```bash
+python -m venv venv
 venv\Scripts\activate
 ```
 
-**Linux / Mac**
-
+**Linux / macOS**
 ```bash
+python3 -m venv venv
 source venv/bin/activate
 ```
 
-### 3. Install Dependencies
+### 3. Install Python dependencies
 
 ```bash
 pip install -r requirements.txt
@@ -148,221 +216,218 @@ pip install -r requirements.txt
 
 ---
 
-# 🧰 Setup External Tools
+## External Tools Setup
 
-These tools must be installed separately (not via pip):
+These must be installed separately — they are not pip packages.
 
-## Install Nmap
+### Nmap (required)
 
-**Linux**
-
+**Linux / Kali**
 ```bash
 sudo apt install nmap
 ```
 
-**Mac**
-
+**macOS**
 ```bash
 brew install nmap
 ```
 
 **Windows**
+Download the installer from [nmap.org/download.html](https://nmap.org/download.html) and ensure `nmap` is in your `PATH`.
 
-* Download from: [https://nmap.org/download.html](https://nmap.org/download.html)
+### Nikto (optional — enables web scanning)
 
----
-
-## Install Nikto
-
+**Linux / Kali**
 ```bash
 sudo apt install nikto
 ```
 
----
+**macOS**
+```bash
+brew install nikto
+```
 
-## Optional: Nessus / OpenVAS
+> If Nikto is not found, the web scanning stage will skip Nikto and still run HTTP header + SSL/TLS analysis.
 
-Used for advanced vulnerability scanning.
-
----
-
-# ▶️ Usage
-
-## Basic Scan
+### Weasyprint (optional — enables PDF export)
 
 ```bash
-python main.py --target example.com --mode basic
+pip install weasyprint
 ```
 
-## Web Scan
+> If weasyprint is not installed, the HTML and JSON reports are still generated. Only the PDF step is skipped.
+
+---
+
+## Usage
+
+RootReaper is an interactive CLI — it guides you through each step:
 
 ```bash
-python main.py --target example.com --mode web
+python main.py
 ```
 
-## Full Scan
+You will be prompted to:
 
-```bash
-python main.py --target example.com --mode full
+1. Confirm or override the detected subnet
+2. Select target hosts from the discovered list (or `all`)
+3. Enter a port range (`21,22,80` / `1-1024` / `all`)
+4. Confirm exploit mode (see below)
+
+---
+
+## Exploit Mode
+
+During startup the tool asks:
+
+```
+Enable exploit mode? Confirm you have authorization (yes/NO):
+```
+
+- **NO (default)** — runs `--script vuln` — detection only, no exploitation attempts
+- **yes** — runs `--script vuln,exploit` — attempts known exploits via Nmap NSE
+
+> **Only type `yes` if you have written authorization to test the target systems.**
+> Unauthorized exploitation is illegal under the Computer Fraud and Abuse Act (CFAA),
+> the Computer Misuse Act (CMA), and equivalent laws worldwide.
+
+---
+
+## Output & Reports
+
+All output is written to the `output/` directory (created automatically):
+
+| File | Description |
+|---|---|
+| `output/report.html` | Interactive dashboard with charts, attack paths, evidence, CVE links |
+| `output/report.pdf` | Print-ready PDF (requires weasyprint) |
+| `output/report.json` | Full machine-readable findings |
+| `output/threat_intel.json` | Latest Critical CVEs from NVD |
+| `output/host_audit.json` | Local host audit results |
+
+### HTML Report sections
+
+- **Executive summary** — total hosts, vulnerability counts by severity, overall risk level + score
+- **Severity distribution chart** — Chart.js donut chart
+- **Host risk bar chart** — risk score per host
+- **Risk heatmap** — Impact × Likelihood matrix
+- **Attack paths** — auto-generated narratives for identified attack vectors
+- **Host details** — per-host open ports, service fingerprints, vulnerability table with evidence, CVE links, remediation priorities
+- **Threat intelligence** — latest Critical CVEs with CVSS scores and NVD links
+
+---
+
+## Example Session
+
+```
+[STEP] Starting RootReaper Enterprise VAPT Framework
+
+=== Dependency Validation ===
+[SUCCESS] Environment validated
+
+=== Subnet Detection ===
+Detected Subnet: 192.168.1.0/24
+Use this subnet? (Y/n): Y
+
+=== Host Discovery ===
+┌────┬───────────────┬──────────┬────────┐
+│ ID │ IP            │ Hostname │ Status │
+├────┼───────────────┼──────────┼────────┤
+│ 1  │ 192.168.1.1   │ router   │ up     │
+│ 2  │ 192.168.1.105 │          │ up     │
+└────┴───────────────┴──────────┴────────┘
+Enter host IDs (comma-separated) or 'all': all
+
+=== Port Selection ===
+Enter ports: 1-1024
+
+=== Exploit Mode ===
+Enable exploit mode? Confirm you have authorization (yes/NO): NO
+
+[STEP] Port scanning...
+[STEP] Service enumeration (SMB/FTP/SSH)...
+[STEP] Vulnerability scanning...
+[STEP] Web application scanning...
+[STEP] Threat intelligence...
+[STEP] Risk analysis...
+[SUCCESS] HTML report → output/report.html
+[SUCCESS] JSON report → output/report.json
+
+=== Attack Path Summary ===
+┌──────────┬───────────────┬──────────────────────────────────────────┐
+│ Severity │ Host          │ Title                                    │
+├──────────┼───────────────┼──────────────────────────────────────────┤
+│ Critical │ 192.168.1.105 │ EternalBlue — Critical Propagation Risk  │
+│ High     │ 192.168.1.105 │ RDP Exposed — Remote Access Attack Vector│
+└──────────┴───────────────┴──────────────────────────────────────────┘
 ```
 
 ---
 
-# ⚙️ CLI Arguments
-
-| Argument | Description         |
-| -------- | ------------------- |
-| --target | Target domain or IP |
-| --mode   | basic / web / full  |
-| --output | html / pdf          |
-
----
-
-# 🔄 Workflow (Detailed)
-
-### Step 1: Input
-
-User provides:
-
-* Target (IP/domain)
-* Scan mode
-
-### Step 2: Network Scan
-
-* Nmap scans open ports and services
-* Output saved in XML format
-
-### Step 3: Parsing
-
-* XML parsed using lxml
-* Extract:
-
-  * Ports
-  * Services
-  * Versions
-
-### Step 4: Web Scan
-
-* Triggered if HTTP/HTTPS detected
-* Nikto scans for vulnerabilities
-
-### Step 5: Correlation Engine
-
-* Matches services with known vulnerabilities
-* Assigns severity
-
-### Step 6: Report Generation
-
-* Data passed into HTML templates
-* Optional PDF conversion
-
----
-
-# 📊 Output & Reports
-
-Generated in:
-
-```
-/reports/output/
-```
-
-## Report Includes
-
-* Scan summary
-* Open ports
-* Vulnerabilities
-* Severity levels
-* Recommendations
-
----
-
-# 🧪 Example Run
-
-```bash
-python main.py --target scanme.nmap.org --mode full
-```
-
-Output:
-
-```
-[+] Running Nmap scan...
-[+] Parsing results...
-[+] Running web scan...
-[+] Generating report...
-[✔] Report saved to /reports/output/
-```
-
----
-
-# 🐞 Troubleshooting
+## Troubleshooting
 
 ### Nmap not found
-
 ```bash
 nmap -v
 ```
+If the command fails, reinstall Nmap and ensure it is in your system `PATH`.
 
-If not installed, install Nmap.
-
-### Permission issues (Linux)
-
+### Permission errors on Linux (raw socket / OS detection)
 ```bash
-sudo python main.py --target <target>
+sudo python3 main.py
 ```
+SYN scan (`-sS`) and OS detection (`-O`) require root on Linux. The tool falls back to TCP connect scan (`-sT`) automatically when not privileged, but OS detection will be limited.
 
 ### PDF not generating
-
-Install wkhtmltopdf:
-
+Ensure weasyprint is installed:
 ```bash
-sudo apt install wkhtmltopdf
+pip install weasyprint
+```
+On Linux, weasyprint may also require system libraries:
+```bash
+sudo apt install libpango-1.0-0 libpangoft2-1.0-0
 ```
 
----
+### Nikto not found
+Web scanning will skip the Nikto step but still run HTTP header and SSL/TLS analysis. To enable full web scanning:
+```bash
+sudo apt install nikto      # Linux
+brew install nikto           # macOS
+```
 
-# 🚀 Future Enhancements
-
-* AI-based vulnerability prioritization
-* Multi-threaded scanning
-* Web dashboard (React/Next.js)
-* REST API (FastAPI)
-* CVE database integration
-
----
-
-# ⚠️ Security Disclaimer
-
-This tool is intended **only for educational purposes and authorized testing**.
-
-Do NOT scan systems without explicit permission.
+### NVD API rate limits
+The NVD public API has a rate limit of 5 requests per 30 seconds without an API key. If threat intelligence fetching fails, the report is still generated without that section.
 
 ---
 
-# 🧠 Why RootReaper?
+## Security Disclaimer
 
-Unlike basic scripts that just execute tools, RootReaper focuses on:
+This tool is intended **solely for authorized security testing and educational purposes**.
 
-* Intelligent orchestration
-* Data normalization
-* Vulnerability correlation
-* Actionable reporting
+- Only scan systems you own or have **explicit written permission** to test
+- Exploit mode (`--script exploit`) must never be used without authorization
+- The author is not responsible for any misuse or damage caused by this tool
 
-👉 It bridges the gap between **tool execution** and **security intelligence**.
-
----
-
-# 👨‍💻 Author
-
-Pragy Jha
-B.Tech CSE (Cyber Security & Digital Forensics)
+Applicable laws include but are not limited to:
+- Computer Fraud and Abuse Act (CFAA) — USA
+- Computer Misuse Act (CMA) — UK
+- Information Technology Act — India
+- Similar legislation in all jurisdictions
 
 ---
 
-# ⭐ Contribution
+## Author
 
-Contributions are welcome!
+**Pragy Jha**
+B.Tech CSE — Cyber Security & Digital Forensics
 
-1. Fork the repo
-2. Create a new branch
-3. Commit changes
-4. Submit a PR
+---
+
+## Contributions
+
+Contributions, issues, and feature requests are welcome.
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/your-feature`)
+3. Commit your changes
+4. Open a Pull Request
