@@ -43,17 +43,22 @@ def _build_nmap_args(ports: Union[str, List[int]]):
     """
     privileged = _is_privileged()
 
-    # If ports is a list, convert to comma separated string
     if isinstance(ports, list):
         ports_arg = ",".join(str(p) for p in ports)
     else:
         ports_arg = str(ports)
 
-    # Use SYN scan if privileged, otherwise TCP connect scan (-sT)
+    # SYN scan when privileged, TCP connect scan otherwise
     scan_type = "-sS" if privileged else "-sT"
 
-    # -sV to detect service/version, -Pn skip host discovery (we already discovered), -T4 speed
-    args = f"{scan_type} -sV -O -p {ports_arg} -T4 --min-rate 50"
+    # --script default,banner  — default NSE set + raw banner grab
+    # --version-intensity 7    — aggressive service/version fingerprinting
+    # -O                       — OS detection (best-effort; needs privilege on Linux)
+    args = (
+        f"{scan_type} -sV --version-intensity 7 -O "
+        f"--script default,banner "
+        f"-p {ports_arg} -T4 --min-rate 50"
+    )
 
     return args
 

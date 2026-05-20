@@ -14,11 +14,16 @@ REQUIRED_PYTHON_MODULES = [
     "nmap",
     "psutil",
     "requests",
-    "jinja2"
+    "jinja2",
 ]
 
 REQUIRED_BINARIES = [
-    "nmap"
+    "nmap",
+]
+
+# Optional tools — missing ones are warned about but do not block startup
+OPTIONAL_BINARIES = [
+    "nikto",
 ]
 
 
@@ -57,8 +62,17 @@ def check_binaries():
     return True
 
 
-def validate_environment():
+def check_optional_binaries():
+    for binary in OPTIONAL_BINARIES:
+        if shutil.which(binary) is None:
+            log_info(
+                f"Optional tool '{binary}' not found — "
+                f"related features will be skipped"
+            )
 
+
+def validate_environment():
+    check_optional_binaries()
     return (
         check_python_modules()
         and check_binaries()
